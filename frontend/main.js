@@ -8,29 +8,35 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 // Cambiar el fondo de la escena para simular el espacio
 scene.background = new THREE.Color(0x000033); // Azul oscuro
 
+let starMeshes = [];
+let starPositions = [];
+
 async function loadStars() {
     const response = await fetch('/api/stars');
     const stars = await response.json();
 
+    // Crear una geometría básica para todas las estrellas
+    const geometry = new THREE.SphereGeometry(0.05, 6, 6);
+    const material = new THREE.MeshBasicMaterial({ color: 0xffffff }); // Blanco para las estrellas
 
-    stars.forEach(star => {
-        // Crear la geometría y el material de la estrella
-        const geometry = new THREE.SphereGeometry(0.05, 6, 6);
-        const material = new THREE.MeshBasicMaterial({ color:"red" }); // Blanco para las estrellas
-        const starMesh = new THREE.Mesh(geometry, material);
+    // Usamos InstancedMesh para mejorar el rendimiento
+    const starCount = stars.length;
+    const instancedMesh = new THREE.InstancedMesh(geometry, material, starCount);
+    instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); // Hacer la matriz de instancias dinámica
 
-        // Calcular la posición en el espacio 3D
-        const raRad = star.ra * Math.PI / 180; // Convertir de grados a radianes
-        const decRad = star.dec * Math.PI / 180; // Convertir de grados a radianes
+    stars.forEach((star, index) => {
+        const { x, y, z } = star;
 
-        starMesh.position.set(
-            (star.ra - 180) * Math.cos(decRad) * 0.5, 
-            (star.ra - 180) * Math.sin(decRad) * 0.5, 
-            -star.parallax * 10 
-        );
+        // Crear una matriz de transformación para cada estrella
+        const matrix = new THREE.Matrix4();
+        matrix.setPosition(new THREE.Vector3(x, y, z));
 
-        scene.add(starMesh); // Agregar la estrella a la escena
+        // Actualizar la matriz de la estrella en la malla instanciada
+        instancedMesh.setMatrixAt(index, matrix);
     });
+
+    // Añadir la malla de instancias a la escena
+    scene.add(instancedMesh);
 
     // Ajustar la posición inicial de la cámara
     camera.position.z = 10;
@@ -44,4 +50,5 @@ function animate() {
     renderer.render(scene, camera);
 }
 
+// Iniciar carga de estrellas
 loadStars();

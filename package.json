@@ -13,7 +13,8 @@
   "dependencies": {
     "express": "4.21.1",
     "node-fetch": "3.3.2",
-    "three": "0.170.0"
+    "three": "0.170.0",
+    "xml2js": "0.6.2"
   },
   "devDependencies": {
     "standard": "17.1.2"
