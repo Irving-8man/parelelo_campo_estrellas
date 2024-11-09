@@ -14,7 +14,8 @@ app.use('/modules', express.static(path.join(__dirname, '../node_modules')));
 
 // Endpoint para obtener datos de estrellas
 app.get('/api/stars', async (req, res) => {
-    console.time('totalRequestTime'); 
+    console.time('totalRequestTime');  // Tiempo total de la solicitud
+
     // Cuadrantes a pedir
     const quadrants = [
         {id:1, raMin: 0, raMax: 90, decMin: -45, decMax: 45 },  // Cuadrante 1
@@ -26,42 +27,41 @@ app.get('/api/stars', async (req, res) => {
     const results = [];
     let completed = 0;
 
-    console.time('workerStartTime'); // Tiempo de inicio del trabajo del worker
+    console.time('workerStartTime');  // Tiempo de inicio del trabajo del worker
 
     // Recorre los cuadrantes y crea un worker para cada uno
     for (const quadrant of quadrants) {
+        console.time(`workerFetch-${quadrant.id}`);  // Medir tiempo de cada worker individual
+
         const worker = new Worker('./backend/fetchWorker.js', { workerData: quadrant });
         worker.on('message', data => {
             // Convertir las coordenadas (ra, dec) a (x, y, z)
             const stars = data.map(star => {
                 const { ra, dec, parallax } = star;
-
-                // Convertir ra y dec de grados a radianes
-                const raRad = ra * (Math.PI / 180); // Convertir a radianes
+                const raRad = ra * (Math.PI / 180);  // Convertir a radianes
                 const decRad = dec * (Math.PI / 180);
-
-                // Calcular la distancia en parsecs a partir de la parallax (en arcseg)
-                const distance = parallax !== 0 ? 1 / parallax : 1e10; // Si no hay paralaje, una distancia muy grande
-
-                // Convertir coordenadas esféricas a cartesianas
+                const distance = parallax !== 0 ? 1 / parallax : 1e10;  // Parallax a distancia
                 const x = distance * Math.cos(decRad) * Math.cos(raRad);
                 const y = distance * Math.cos(decRad) * Math.sin(raRad);
                 const z = distance * Math.sin(decRad);
-
                 return { x, y, z, parallax };
             });
 
             results.push(...stars);
             completed += 1;
+            console.timeEnd(`workerFetch-${quadrant.id}`);  // Fin del tiempo por worker
+
             if (completed === quadrants.length) {
-                console.timeEnd('workerStartTime'); // Fin del tiempo del worker
-                console.timeEnd('totalRequestTime'); // Fin del tiempo total para la solicitud
-                res.json(results); // Enviar los resultados al cliente cuando todos los cuadrantes hayan sido procesados
+                console.timeEnd('workerStartTime');  // Fin del tiempo total de los workers
+                console.timeEnd('totalRequestTime');  // Fin del tiempo total de la solicitud
+                res.json(results);  // Enviar los resultados al cliente
             }
         });
+
         worker.on('error', err => console.error(err));
     }
 });
+
 
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);

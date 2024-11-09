@@ -2,16 +2,14 @@ import { parentPort, workerData } from 'node:worker_threads';
 import fetch from 'node-fetch';
 import xml2js from 'xml2js';
 
-// Función para obtener datos de las estrellas a partir de la consulta
 async function fetchStarData(quadrant) {
     const {id, raMin, raMax, decMin, decMax } = quadrant;
-    const query = `SELECT TOP 500 ra, dec, parallax FROM gaiadr2.gaia_source 
+    const query = `SELECT TOP 700 ra, dec, parallax FROM gaiadr2.gaia_source 
                    WHERE ra BETWEEN ${raMin} AND ${raMax} 
                    AND dec BETWEEN ${decMin} AND ${decMax}`;
     const url = `https://gea.esac.esa.int/tap-server/tap/sync?REQUEST=doQuery&LANG=ADQL&FORMAT=votable&QUERY=${encodeURIComponent(query)}`;
 
-
-    console.time(`Inicio-fetchData-cuadrante-${id}`); // Comienza a medir el tiempo
+    console.time(`Inicio-fetchData-cuadrante-${id}`);  // Iniciar temporizador para cada cuadrante
 
     try {
         const response = await fetch(url);
@@ -25,7 +23,6 @@ async function fetchStarData(quadrant) {
         const parser = new xml2js.Parser();
         const json = await parser.parseStringPromise(xml);
 
-        // Verificar la estructura del XML
         const resource = json.VOTABLE && json.VOTABLE.RESOURCE && json.VOTABLE.RESOURCE[0];
         if (!resource) {
             throw new Error('No se encontró el recurso esperado en el XML');
@@ -41,15 +38,13 @@ async function fetchStarData(quadrant) {
             throw new Error('No se encontró la sección de datos en el XML');
         }
 
-        // Extraer el bloque BINARY2 que contiene los datos base64
         const binaryData = data.BINARY2 && data.BINARY2[0].STREAM[0];
         if (!binaryData) {
             throw new Error('No se encontraron datos binarios en el XML');
         }
 
-        // Si binaryData es un objeto, la cadena base64 estará dentro de la propiedad `_`
         if (binaryData._) {
-            const base64Data = binaryData._.replace(/\s+/g, ''); // Limpiar espacios y saltos de línea
+            const base64Data = binaryData._.replace(/\s+/g, ''); // Limpiar espacios
             const decodedBuffer = Buffer.from(base64Data, 'base64');
 
             const stars = [];
@@ -60,18 +55,19 @@ async function fetchStarData(quadrant) {
                 const parallax = decodedBuffer.readFloatLE(i + 8); 
                 stars.push({ ra, dec, parallax });
             }
-            console.timeEnd(`Inicio-fetchData-cuadrante-${id}`); // Fin de la medición
+
+            console.timeEnd(`Inicio-fetchData-cuadrante-${id}`);  // Fin del tiempo por cuadrante
             return stars; 
         } else {
             throw new Error('binaryData._ no contiene los datos base64 esperados');
         }
-
     } catch (err) {
         console.error('Error al procesar la consulta:', err);
         throw err;
     }
 }
-console.time('workerProcess'); // Comienza a medir el tiempo del proceso en el worker
+
+console.time('workerProcess');  // Iniciar temporizador para el worker
 
 fetchStarData(workerData)
     .then(data => {

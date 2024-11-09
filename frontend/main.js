@@ -8,9 +8,6 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 // Cambiar el fondo de la escena para simular el espacio
 scene.background = new THREE.Color(0x000033); // Azul oscuro
 
-let starMeshes = [];
-let starPositions = [];
-
 async function loadStars() {
     const response = await fetch('/api/stars');
     const stars = await response.json();
@@ -35,13 +32,9 @@ async function loadStars() {
         instancedMesh.setMatrixAt(index, matrix);
     });
 
-    // Añadir la malla de instancias a la escena
     scene.add(instancedMesh);
-
     // Ajustar la posición inicial de la cámara
     camera.position.z = 8;
-
-    // Iniciar la animación
     animate();
 }
 
