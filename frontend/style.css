@@ -1,0 +1,11 @@
+/* frontend/styles.css */
+body,
+html {
+    margin: 0;
+    overflow: hidden;
+    background-color: black;
+}
+
+canvas {
+    display: block;
+}
