@@ -39,7 +39,7 @@ async function loadStars() {
     scene.add(instancedMesh);
 
     // Ajustar la posición inicial de la cámara
-    camera.position.z = 10;
+    camera.position.z = 8;
 
     // Iniciar la animación
     animate();

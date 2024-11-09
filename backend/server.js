@@ -9,22 +9,24 @@ const PORT = 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Servir los archivos estáticos del frontend
 app.use(express.static(path.join(__dirname, '../frontend')));
-
-// Servir los módulos de node_modules
 app.use('/modules', express.static(path.join(__dirname, '../node_modules')));
 
 // Endpoint para obtener datos de estrellas
 app.get('/api/stars', async (req, res) => {
+    console.time('totalRequestTime'); 
+    // Cuadrantes a pedir
     const quadrants = [
-        { raMin: 0, raMax: 90, decMin: -45, decMax: 45 },
-        { raMin: 90, raMax: 180, decMin: -45, decMax: 45 },
-        // Agrega más cuadrantes si es necesario
+        {id:1, raMin: 0, raMax: 90, decMin: -45, decMax: 45 },  // Cuadrante 1
+        {id:2, raMin: 90, raMax: 180, decMin: -45, decMax: 45 }, // Cuadrante 2
+        {id:3, raMin: 0, raMax: 90, decMin: -90, decMax: -45 },  // Cuadrante 3
+        {id:4, raMin: 90, raMax: 180, decMin: -90, decMax: -45 }, // Cuadrante 4
     ];
 
     const results = [];
     let completed = 0;
+
+    console.time('workerStartTime'); // Tiempo de inicio del trabajo del worker
 
     // Recorre los cuadrantes y crea un worker para cada uno
     for (const quadrant of quadrants) {
@@ -46,12 +48,14 @@ app.get('/api/stars', async (req, res) => {
                 const y = distance * Math.cos(decRad) * Math.sin(raRad);
                 const z = distance * Math.sin(decRad);
 
-                return { x, y, z, parallax };  // Se devuelve también el parallax para su uso en Three.js
+                return { x, y, z, parallax };
             });
 
             results.push(...stars);
             completed += 1;
             if (completed === quadrants.length) {
+                console.timeEnd('workerStartTime'); // Fin del tiempo del worker
+                console.timeEnd('totalRequestTime'); // Fin del tiempo total para la solicitud
                 res.json(results); // Enviar los resultados al cliente cuando todos los cuadrantes hayan sido procesados
             }
         });

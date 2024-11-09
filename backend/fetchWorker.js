@@ -4,11 +4,14 @@ import xml2js from 'xml2js';
 
 // Función para obtener datos de las estrellas a partir de la consulta
 async function fetchStarData(quadrant) {
-    const { raMin, raMax, decMin, decMax } = quadrant;
-    const query = `SELECT TOP 1000 ra, dec, parallax FROM gaiadr2.gaia_source 
+    const {id, raMin, raMax, decMin, decMax } = quadrant;
+    const query = `SELECT TOP 500 ra, dec, parallax FROM gaiadr2.gaia_source 
                    WHERE ra BETWEEN ${raMin} AND ${raMax} 
                    AND dec BETWEEN ${decMin} AND ${decMax}`;
     const url = `https://gea.esac.esa.int/tap-server/tap/sync?REQUEST=doQuery&LANG=ADQL&FORMAT=votable&QUERY=${encodeURIComponent(query)}`;
+
+
+    console.time(`Inicio-fetchData-cuadrante-${id}`); // Comienza a medir el tiempo
 
     try {
         const response = await fetch(url);
@@ -49,17 +52,16 @@ async function fetchStarData(quadrant) {
             const base64Data = binaryData._.replace(/\s+/g, ''); // Limpiar espacios y saltos de línea
             const decodedBuffer = Buffer.from(base64Data, 'base64');
 
-            // Supongamos que los datos binarios son triples de números flotantes (RA, Dec, Parallax)
             const stars = [];
             const starDataLength = 12;  // 12 bytes por estrella (4 para RA, 4 para Dec, 4 para Parallax)
             for (let i = 0; i + starDataLength <= decodedBuffer.length; i += starDataLength) {
-                const ra = decodedBuffer.readFloatLE(i);        // RA como número flotante de 4 bytes
-                const dec = decodedBuffer.readFloatLE(i + 4);   // Dec como número flotante de 4 bytes
-                const parallax = decodedBuffer.readFloatLE(i + 8);  // Parallax como número flotante de 4 bytes
+                const ra = decodedBuffer.readFloatLE(i);        
+                const dec = decodedBuffer.readFloatLE(i + 4);   
+                const parallax = decodedBuffer.readFloatLE(i + 8); 
                 stars.push({ ra, dec, parallax });
             }
-
-            return stars;  // Regresar las coordenadas de las estrellas con parallax
+            console.timeEnd(`Inicio-fetchData-cuadrante-${id}`); // Fin de la medición
+            return stars; 
         } else {
             throw new Error('binaryData._ no contiene los datos base64 esperados');
         }
@@ -69,9 +71,11 @@ async function fetchStarData(quadrant) {
         throw err;
     }
 }
+console.time('workerProcess'); // Comienza a medir el tiempo del proceso en el worker
 
 fetchStarData(workerData)
     .then(data => {
+        console.timeEnd('workerProcess');  // Fin del tiempo de procesamiento en el worker
         parentPort.postMessage(data);  // Enviar los datos de estrellas al hilo principal
     })
     .catch(err => {
