@@ -9,7 +9,6 @@ async function fetchStarData(quadrant) {
                    AND dec BETWEEN ${decMin} AND ${decMax}`;
     const url = `https://gea.esac.esa.int/tap-server/tap/sync?REQUEST=doQuery&LANG=ADQL&FORMAT=votable&QUERY=${encodeURIComponent(query)}`;
 
-    console.time(`Inicio-fetchData-cuadrante-${id}`);  // Iniciar temporizador para cada cuadrante
 
     try {
         const response = await fetch(url);
@@ -56,7 +55,6 @@ async function fetchStarData(quadrant) {
                 stars.push({ ra, dec, parallax });
             }
 
-            console.timeEnd(`Inicio-fetchData-cuadrante-${id}`);  // Fin del tiempo por cuadrante
             return stars; 
         } else {
             throw new Error('binaryData._ no contiene los datos base64 esperados');
@@ -67,11 +65,9 @@ async function fetchStarData(quadrant) {
     }
 }
 
-console.time('workerProcess');  // Iniciar temporizador para el worker
 
 fetchStarData(workerData)
     .then(data => {
-        console.timeEnd('workerProcess');  // Fin del tiempo de procesamiento en el worker
         parentPort.postMessage(data);  // Enviar los datos de estrellas al hilo principal
     })
     .catch(err => {

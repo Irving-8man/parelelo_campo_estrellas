@@ -14,9 +14,10 @@ app.use('/modules', express.static(path.join(__dirname, '../node_modules')));
 
 // Endpoint para obtener datos de estrellas
 app.get('/api/stars', async (req, res) => {
+    console.log('<-------------------Comenzando------------------>');
     console.time('totalRequestTime');  // Tiempo total de la solicitud
 
-    // Cuadrantes a pedir
+    // Cuadrantes
     const quadrants = [
         {id:1, raMin: 0, raMax: 90, decMin: -45, decMax: 45 },  // Cuadrante 1
         {id:2, raMin: 90, raMax: 180, decMin: -45, decMax: 45 }, // Cuadrante 2
@@ -27,11 +28,10 @@ app.get('/api/stars', async (req, res) => {
     const results = [];
     let completed = 0;
 
-    console.time('workerStartTime');  // Tiempo de inicio del trabajo del worker
 
     // Recorre los cuadrantes y crea un worker para cada uno
     for (const quadrant of quadrants) {
-        console.time(`workerFetch-${quadrant.id}`);  // Medir tiempo de cada worker individual
+        //console.time(`workerFetch-${quadrant.id}`);  // Medir tiempo de cada worker individual
 
         const worker = new Worker('./backend/fetchWorker.js', { workerData: quadrant });
         worker.on('message', data => {
@@ -49,12 +49,12 @@ app.get('/api/stars', async (req, res) => {
 
             results.push(...stars);
             completed += 1;
-            console.timeEnd(`workerFetch-${quadrant.id}`);  // Fin del tiempo por worker
+            //console.timeEnd(`workerFetch-${quadrant.id}`);
 
             if (completed === quadrants.length) {
-                console.timeEnd('workerStartTime');  // Fin del tiempo total de los workers
                 console.timeEnd('totalRequestTime');  // Fin del tiempo total de la solicitud
-                res.json(results);  // Enviar los resultados al cliente
+                console.log('<-------------------Fin------------------>');
+                res.json(results);
             }
         });
 
