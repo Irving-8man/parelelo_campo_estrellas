@@ -12,6 +12,7 @@ const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname, '../frontend')));
 app.use('/modules', express.static(path.join(__dirname, '../node_modules')));
 
+
 // Endpoint para obtener datos de estrellas
 app.get('/api/stars', async (req, res) => {
     console.log('<-------------------Comenzando------------------>');
