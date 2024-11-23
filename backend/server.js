@@ -20,10 +20,10 @@ app.get('/api/stars', async (req, res) => {
 
     // Cuadrantes
     const quadrants = [
-        {id:1, raMin: 0, raMax: 90, decMin: -45, decMax: 45 },  // Cuadrante 1
-        {id:2, raMin: 90, raMax: 180, decMin: -45, decMax: 45 }, // Cuadrante 2
-        {id:3, raMin: 0, raMax: 90, decMin: -90, decMax: -45 },  // Cuadrante 3
-        {id:4, raMin: 90, raMax: 180, decMin: -90, decMax: -45 }, // Cuadrante 4
+        { id: 1, raMin: 0, raMax: 90, decMin: -45, decMax: 45 },  // Cuadrante 1
+        { id: 2, raMin: 90, raMax: 180, decMin: -45, decMax: 45 }, // Cuadrante 2
+        { id: 3, raMin: 0, raMax: 90, decMin: -90, decMax: -45 },  // Cuadrante 3
+        { id: 4, raMin: 90, raMax: 180, decMin: -90, decMax: -45 }, // Cuadrante 4
     ];
 
     const results = [];
@@ -34,32 +34,39 @@ app.get('/api/stars', async (req, res) => {
     for (const quadrant of quadrants) {
         //console.time(`workerFetch-${quadrant.id}`);  // Medir tiempo de cada worker individual
 
-        const worker = new Worker('./backend/fetchWorker.js', { workerData: quadrant });
-        worker.on('message', data => {
-            // Convertir las coordenadas (ra, dec) a (x, y, z)
-            const stars = data.map(star => {
-                const { ra, dec, parallax } = star;
-                const raRad = ra * (Math.PI / 180);  // Convertir a radianes
-                const decRad = dec * (Math.PI / 180);
-                const distance = parallax !== 0 ? 1 / parallax : 1e10;  // Parallax a distancia
-                const x = distance * Math.cos(decRad) * Math.cos(raRad);
-                const y = distance * Math.cos(decRad) * Math.sin(raRad);
-                const z = distance * Math.sin(decRad);
-                return { x, y, z, parallax };
-            });
+        //Dividir cada cuadrante en dos subcuadrantes
+        const subQuadrants = [
+            { id: `${quadrant.id}-1`, raMin: quadrant.raMin, raMax: (quadrant.raMin + quadrant.raMax) / 2, decMin: quadrant.decMin, decMax: quadrant.decMax },
+            { id: `${quadrant.id}-2`, raMin: (quadrant.raMin + quadrant.raMax) / 2, raMax: quadrant.raMax, decMin: quadrant.decMin, decMax: quadrant.decMax }
+        ];
 
-            results.push(...stars);
-            completed += 1;
-            //console.timeEnd(`workerFetch-${quadrant.id}`);
+        for (const subQuadrant of subQuadrants) {
+            const worker = new Worker('./backend/fetchWorker.js', { workerData: { ...subQuadrant, starCount: 2000 } });
+            worker.on('message', data => {
+                // Convertir las coordenadas (ra, dec) a (x, y, z)
+                const stars = data.map(star => {
+                    const { ra, dec, parallax } = star;
+                    const raRad = ra * (Math.PI / 180); // Convertir a radianes
+                    const decRad = dec * (Math.PI / 180);
+                    const distance = parallax !== 0 ? 1 / parallax : 1e10; // Parallax a distancia
+                    const x = distance * Math.cos(decRad) * Math.cos(raRad);
+                    const y = distance * Math.cos(decRad) * Math.sin(raRad);
+                    const z = distance * Math.sin(decRad);
+                    return { x, y, z, parallax };
+                })
+                results.push(...stars);
+                completed++;
+                //console.timeEnd(`workerFetch-${quadrant.id}`);
 
-            if (completed === quadrants.length) {
-                console.timeEnd('totalRequestTime');  // Fin del tiempo total de la solicitud
-                console.log('<-------------------Fin------------------>');
-                res.json(results);
-            }
-        });
+                if (completed === subQuadrants.length * quadrants.length) {
+                    console.timeEnd('totalRequestTime');  // Fin del tiempo total de la solicitud
+                    console.log('<-------------------Fin------------------>');
+                    res.json(results);
+                }
+            })
 
-        worker.on('error', err => console.error(err));
+            worker.on('error', err => console.error(err));
+        }
     }
 });
 
